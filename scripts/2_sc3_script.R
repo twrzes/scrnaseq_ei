@@ -33,7 +33,6 @@ dataset_sce <- SingleCellExperiment(
 )
 
 # Calculating QC metrics
-library(scater)
 dataset_sce <- calculateQCMetrics(dataset_sce)
 
 # Adding log2(x) + 1 into SCE object
@@ -63,34 +62,14 @@ sce <- sc3_calc_transfs(sce)
 sce <- sc3_kmeans(sce, ks = <TO_EDIT>:<TO_EDIT>)
 
 # Clustering solution
+sce <- sc3_calc_consens(sce)
 
+# Differentially expressed genes, cell markers and cell outliers
+sce <- sc3_calc_biology(sce, ks = <TO_EDIT>:<TO_EDIT>)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Calculate the clusters (based on k-means clustering)
-sc_three <- sc3(dataset_sce, ks = 2:10, biology = TRUE, k_estimator = TRUE)
-
-
+# We can write the whole result tables by writing column and row data
+write.table(as.data.frame(colData(sce)[,grep("sc3_", colnames(colData(sce)))]), file = "<TO_EDIT>", append = F, quote = F, sep = "\t", row.names = T, col.names = T)
+write.table(as.data.frame(rowData(sce)[ , grep("sc3_", colnames(rowData(sce)))]), file = "<TO_EDIT>", append = F, quote = F, sep = "\t", row.names = T, col.names = T)
 
 # Interactive mode - opens a new window in the browser
-sc3_interactive(sc_three)
+sc3_interactive(sce)
