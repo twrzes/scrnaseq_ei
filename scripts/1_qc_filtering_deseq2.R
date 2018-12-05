@@ -26,7 +26,7 @@ cell_annotations <- subset(cell_annotations, select = -cell_name)
 # Creating a SingleCellExperiment object
 library(SingleCellExperiment)
 dataset_sce <- SingleCellExperiment(
-  assays = list(counts = as.matrix(gene_counts)), 
+  assays = list(counts = as.matrix(gene_counts)),
   colData = cell_annotations
 )
 
@@ -83,10 +83,12 @@ dds <- DESeq(dds, test = "LRT", reduced = ~ <TO_EDIT>, sfType = "poscounts", use
 # Loading a DESeq2 object
 dds <- readRDS("<TO_EDIT>")
 
-# Available results
+# Available results and contrasts
 resultsNames(dds)
 # Calculate differential expression for chosen contrasts
 res <- results(dds, parallel = TRUE, contrast = c("<TO_EDIT>", "<TO_EDIT>", "<TO_EDIT>"), cooksCutoff=FALSE)
+# Results summary
+summary(res)
 
 # Writing result to a file
 # Converting results to data frame

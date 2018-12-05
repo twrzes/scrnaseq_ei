@@ -28,7 +28,7 @@ library(scater)
 
 # Create a SingleCellExperiment object
 dataset_sce <- SingleCellExperiment(
-  assays = list(counts = as.matrix(gene_counts)), 
+  assays = list(counts = as.matrix(gene_counts)),
   colData = cell_annotations
 )
 
@@ -44,14 +44,53 @@ rowData(dataset_sce)$feature_symbol <- rownames(dataset_sce)
 # Remove features with duplicated names
 dataset_sce <- dataset_sce[!duplicated(rowData(dataset_sce)$feature_symbol), ]
 
+# Preparing the data
+sce <- sc3_prepare(dataset_sce)
+
+# Calculating the optimal number of clusters
+sce <- sc3_estimate_k(sce)
+
+# See the estimated number of clusters
+str(metadata(sce)$sc3$k_estimation)
+
+# Calculate distance matrices corresponding to Euclidean, Pearson and Spearman distances
+sce <- sc3_calc_dists(sce)
+
+# Distance matrix transformation
+sce <- sc3_calc_transfs(sce)
+
+# K-means clustering
+sce <- sc3_kmeans(sce, ks = <TO_EDIT>:<TO_EDIT>)
+
+# Clustering solution
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Calculate the clusters (based on k-means clustering)
 sc_three <- sc3(dataset_sce, ks = 2:10, biology = TRUE, k_estimator = TRUE)
 
-# See the estimated number of clusters
-str(metadata(sc_three)$sc3$k_estimation)
+
 
 # Interactive mode - opens a new window in the browser
 sc3_interactive(sc_three)
-
