@@ -86,7 +86,7 @@ The count matrix contains gene IDs as rows and sample names as columns. The file
 The annotation file contains sample names as row and all available meta-data (conditions/batches) as columns. The filename of this file ends at `*_ann.txt`.
 
 ## 1. Starting the analysis
-**Script name:** `1_qc_filtering_deseq2.R`
+**Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_qc_filtering_deseq2.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_qc_filtering_deseq2.R)
 ### 1.1. Loading the data to R
 By default, all character strings in the table are being recognised as factors. To change this behaviour we need to type:
 ```R
@@ -427,7 +427,7 @@ In move centroid step, K-means moves the centroids to the average of the points 
 ## 5. SC3 library - clustering example
 **For more information you can refer to `SC3` documentation:** [http://bioconductor.org/packages/release/bioc/html/SC3.html](http://bioconductor.org/packages/release/bioc/html/SC3.html)
 
-**Script name:** `2_sc_script.R`
+**Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/2_sc3_script.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/2_sc3_script.R)
 
 Single-Cell Consensus Clustering (`SC3`) is a tool for unsupervised clustering of scRNA-seq data. `SC3` achieves high accuracy and robustness by consistently integrating different clustering solutions through a consensus approach. An interactive graphical implementation makes `SC3` accessible to a wide audience of users. In addition, `SC3` also aids biological interpretation by identifying marker genes, differentially expressed genes and outlier cells. A manuscript describing `SC3` in details is published in [Nature Methods](http://dx.doi.org/10.1038/nmeth.4236).
 
