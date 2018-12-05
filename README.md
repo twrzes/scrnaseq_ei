@@ -44,7 +44,7 @@ The annotation file contains sample names as row and all available meta-data (co
 ### Loading the data to R
 By default, all character strings in the table are being recognised as factors. To change this behaviour we need to type:
 ```
-R
+python
 # Changing the default R behaviour that all strings are treated as factors when reading the table
 options(stringsAsFactors = FALSE)
 ```
