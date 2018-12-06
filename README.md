@@ -86,7 +86,7 @@ The count matrix contains gene IDs as rows and sample names as columns. The file
 The annotation file contains sample names as row and all available meta-data (conditions/batches) as columns. The filename of this file ends at `*_ann.txt`.
 
 ## 1. Starting the analysis
-**Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc_script.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc_script.R)
+**Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc3_script.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc3_script.R)
 ### 1.1. Loading the data to R
 By default, all character strings in the table are being recognised as factors. To change this behaviour we need to type:
 ```R
@@ -367,7 +367,9 @@ To find marker genes, for each gene a binary classifier is constructed based on 
 ## 5. Differential expression testing with DESeq2
 **For more information you can refer to `DESeq2` documentation:** [http://bioconductor.org/packages/release/bioc/html/DESeq2.html](http://bioconductor.org/packages/release/bioc/html/DESeq2.html)
 
-Please refer to the **1. Starting the analysis** and **2. Expression QC** sections of this tutorial.
+Please refer to the [**1. Starting the analysis**](https://github.com/twrzes/scrnaseq_ei#1-starting-the-analysis) and [**2. Expression QC**](https://github.com/twrzes/scrnaseq_ei#2-expression-qc) sections of this tutorial.
+
+**Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/2_deseq2_script.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/2_deseq2_script.R)
 
 In order to run DESeq2 we have to remove outliers from the subsequent analysis:
 ```R
