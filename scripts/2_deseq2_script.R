@@ -1,5 +1,13 @@
 # Experiment QC and filtering, followed by DESEq2
 
+# Load all required libraries
+library(SingleCellExperiment)
+library(scater)
+library(DESeq2)
+library(BiocParallel)
+
+# This part is exactly identical with the 1_sc_script.R
+
 # Changing the default R behaviour that all strings are treated as factors when reading the table
 options(stringsAsFactors = FALSE)
 
@@ -24,48 +32,26 @@ cell_annotations <- subset(cell_annotations, select = -cell_name)
 # Note that row names in cell annotations are in the same order as column names in gene counts - this is absolutely critical as DESEq2 maps gene counts and sample annotations based on order, not on names
 
 # Creating a SingleCellExperiment object
-library(SingleCellExperiment)
 dataset_sce <- SingleCellExperiment(
   assays = list(counts = as.matrix(gene_counts)),
   colData = cell_annotations
 )
 
 # Calculating QC metrics
-library(scater)
 dataset_sce <- calculateQCMetrics(dataset_sce)
 
 # Adding log2(x) + 1 into SCE object
 dataset_sce <- normalize(dataset_sce)
 
-# Running PCA on log2 counts
-dataset_sce <- runPCA(dataset_sce)
-
-# Generating a PCA plot
-plotPCA(dataset_sce, colour_by = "cell_type1")
-
-# Generating the plot with amount of variance explained by each annotation column
-plotExplanatoryVariables(dataset_sce)
-
-# Run tSNE
-dataset_sce <- runTSNE(dataset_sce, perplexity=<NUMBER_TO_EDIT>)
-
-# Plot tSNE with perplexity as in previous step
-plotTSNE(dataset_sce, colour_by = "cell_type1")
-
 # Running PCA on to identify outliers
 dataset_sce <- runPCA(dataset_sce, use_coldata = TRUE, detect_outliers = TRUE, selected_variables = c("pct_counts_in_top_100_features", "total_features_by_counts", "log10_total_features_by_counts"))
 
-# Plot PCA with cell types and outliers
-plotPCA(dataset_sce, colour_by = "cell_type1", size_by = "outlier")
+# This is the end of the part of the script which is identical to the 1_sc3_script.R script
 
 # Filter out the outliers from the dataset
 dataset_sce <- filter(dataset_sce, outlier == FALSE)
 
-# Load DESeq2
-library(DESeq2)
-
 # Parallel processing - change number of cores
-library(BiocParallel)
 # This registers 4 cores in non-Windows computers (Mac, Linux)
 register(MulticoreParam(<TO_EDIT>))
 # This registers 4 cores in Windows-based computers

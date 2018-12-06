@@ -1,4 +1,9 @@
-# Using SC3 to analyse the data
+# Using scater to visualise the data and SC3 to analyse the data
+
+# Loading required libraries
+library(SingleCellExperiment)
+library(scater)
+library(SC3)
 
 # Changing the default R behaviour that all strings are treated as factors when reading the table
 options(stringsAsFactors = FALSE)
@@ -21,12 +26,7 @@ rownames(cell_annotations) <- cell_annotations[["cell_name"]]
 # Removing first column
 cell_annotations <- subset(cell_annotations, select = -cell_name)
 
-# Loading required libraries
-library(SC3)
-library(SingleCellExperiment)
-library(scater)
-
-# Create a SingleCellExperiment object
+# Creating a SingleCellExperiment object
 dataset_sce <- SingleCellExperiment(
   assays = list(counts = as.matrix(gene_counts)),
   colData = cell_annotations
@@ -37,6 +37,27 @@ dataset_sce <- calculateQCMetrics(dataset_sce)
 
 # Adding log2(x) + 1 into SCE object
 dataset_sce <- normalize(dataset_sce)
+
+# Running PCA on log2 counts
+dataset_sce <- runPCA(dataset_sce)
+
+# Generating a PCA plot
+plotPCA(dataset_sce, colour_by = "cell_type1")
+
+# Generating the plot with amount of variance explained by each annotation column
+plotExplanatoryVariables(dataset_sce)
+
+# Run tSNE
+dataset_sce <- runTSNE(dataset_sce, perplexity=<NUMBER_TO_EDIT>)
+
+# Plot tSNE with perplexity as in previous step
+plotTSNE(dataset_sce, colour_by = "cell_type1")
+
+# Running PCA on to identify outliers
+dataset_sce <- runPCA(dataset_sce, use_coldata = TRUE, detect_outliers = TRUE, selected_variables = c("pct_counts_in_top_100_features", "total_features_by_counts", "log10_total_features_by_counts"))
+
+# Plot PCA with cell types and outliers
+plotPCA(dataset_sce, colour_by = "cell_type1", size_by = "outlier")
 
 # Define feature names in feature_symbol column
 rowData(dataset_sce)$feature_symbol <- rownames(dataset_sce)

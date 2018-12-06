@@ -86,7 +86,7 @@ The count matrix contains gene IDs as rows and sample names as columns. The file
 The annotation file contains sample names as row and all available meta-data (conditions/batches) as columns. The filename of this file ends at `*_ann.txt`.
 
 ## 1. Starting the analysis
-**Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_qc_filtering_deseq2.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_qc_filtering_deseq2.R)
+**Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc_script.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc_script.R)
 ### 1.1. Loading the data to R
 By default, all character strings in the table are being recognised as factors. To change this behaviour we need to type:
 ```R
@@ -98,7 +98,7 @@ gene_counts <- read.table("<TO_EDIT>", header = T, sep = "\t", check.names = FAL
 ```
 **Important: Don't forget to change the path to the counts file in your script before running the line.**
 
-Because all the libraries require to have gene names as row names, we need to change the first column to row names and remove the column from the data frame. This can be achieved by the following code:
+Because all the R libraries require to have gene names as row names, we need to change the first column to row names and remove the column from the data frame. This can be achieved by the following code:
 ```R
 rownames(gene_counts) <- gene_counts[["gene_name"]]
 gene_counts <- subset(gene_counts, select = -gene_name)
@@ -219,13 +219,160 @@ Plotting the PCA plot with outliers depicted as different point sizes:
 plotPCA(dataset_sce, colour_by = "cell_type1", size_by = "outlier")
 ```
 
-The last thing is to remove outliers from the subsequent analysis:
+## 3. Clustering approaches and problems
+Once we have normalized the data we can carry out analyses that are relevant to the biological questions at hand. The exact nature of the analysis depends on the dataset. Nevertheless, there are a few aspects that are useful in a wide range of contexts, one of them being the clustering of scRNA-seq data.
+
+One of the most promising applications of scRNA-seq is _de novo_ discovery and annotation of cell-types based on transcription profiles. Computationally, this is a hard problem as it amounts to **unsupervised clustering**. That is, we need to identify groups of cells based on the similarities of the transcriptomes without any prior knowledge of the labels. Moreover, in most situations we do not even know the number of clusters _a priori_. The problem is made even more challenging due to the high level of noise (both technical and biological) and the large number of dimensions (i.e. genes).
+
+Unsupervised clustering is useful in many different applications and it has been widely studied in machine learning. Some of the most popular approaches are **hierarchical clustering** and **k-means clustering**
+
+### 3.1. Hierarchical clustering
+In hierarchical clustering, one can use either a bottom-up or a top-down approach. In the former case, each cell is initially assigned to its own cluster and pairs of clusters are subsequently merged to create a hierarchy:
+
+Raw data:
+
+![image](https://hemberg-lab.github.io/scRNA.seq.course/figures/hierarchical_clustering1.png)
+
+Creating a hierarchical clustering graph:
+
+![image](https://hemberg-lab.github.io/scRNA.seq.course/figures/hierarchical_clustering2.png)
+
+_Image credits: Vladimir Kiselev, Tallulah Andrews, Jennifer Westoby, Davis McCarthy, Maren Büttner and Martin Hemberg, Wellcome Sanger Institute, Cambridge_
+
+With a top-down strategy, one instead starts with all observations in one cluster and then recursively split each cluster to form a hierarchy. One of the advantages of this strategy is that the method is deterministic.
+
+### 3.2. K-means clustering
+In k-means clustering, the goal is to partition N cells into k different clusters. In an iterative manner, cluster centers are assigned and each cell is assigned to its nearest cluster:
+
+![image](https://hemberg-lab.github.io/scRNA.seq.course/figures/k-means.png)
+
+_Image credit: Vladimir Kiselev, Tallulah Andrews, Jennifer Westoby, Davis McCarthy, Maren Büttner and Martin Hemberg, Wellcome Sanger Institute, Cambridge_
+
+
+To run a k-means algorithm, you have to randomly initialize three points called the cluster centroids. In the example we have three cluster centroids, because we want to group a data into three clusters. K-means is an iterative algorithm and it does two steps: 1. Cluster assignment step 2. Move centroid step.
+
+In Cluster assignment step, the algorithm goes through each of the data points and depending on which cluster is closer, whether the red cluster centroid or the blue cluster centroid or the green. It assigns the data points to one of the three cluster centroids.
+
+In move centroid step, K-means moves the centroids to the average of the points in a cluster. In other words, the algorithm calculates the average of all the points in a cluster and moves the centroid to that average location.
+
+### 3.3. Problems with the clustering methods
+- What is the number of clusters k?
+- What is a cell type?
+- Scalability: in the last few years the number of cells in scRNA-seq experiments has grown by several orders of magnitude from hundreds to millions.
+- Tools are not user-friendly
+
+## 4. SC3 library - clustering example
+**For more information you can refer to `SC3` documentation:** [http://bioconductor.org/packages/release/bioc/html/SC3.html](http://bioconductor.org/packages/release/bioc/html/SC3.html)
+
+Single-Cell Consensus Clustering (`SC3`) is a tool for unsupervised clustering of scRNA-seq data. `SC3` achieves high accuracy and robustness by consistently integrating different clustering solutions through a consensus approach. An interactive graphical implementation makes `SC3` accessible to a wide audience of users. In addition, `SC3` also aids biological interpretation by identifying marker genes, differentially expressed genes and outlier cells. A manuscript describing `SC3` in details is published in [Nature Methods](http://dx.doi.org/10.1038/nmeth.4236).
+
+![image](https://hemberg-lab.github.io/scRNA.seq.course/figures/sc3.png)
+
+_Image credit: Vladimir Kiselev, Tallulah Andrews, Jennifer Westoby, Davis McCarthy, Maren Büttner and Martin Hemberg, Wellcome Sanger Institute, Cambridge_
+
+### 4.1. Creating a column in rowData with feature names
+In order to have feature names included in all the analyses (i.e. tables and plots), we need to put their names in the `feature_symbol` column in row data:
+```R
+rowData(sce)$feature_symbol <- rownames(sce)
+```
+We also need to remove some duplicated feature names (if there are any):
+```R
+sce <- sce[!duplicated(rowData(sce)$feature_symbol), ]
+```
+
+### 4.2. Preparing the data
+We start with `sc3_prepare`. This method prepares an object of `sce` class for `SC3` clustering. This method also defines all parameters needed for clustering and stores them in the `sc3` slot:
+```R
+sce <- sc3_prepare(sce)
+```
+
+### 4.3. Calculating the optimal number of clusters
+When the `sce` object is prepared for clustering, `SC3` can also estimate the optimal number of clusters `k` in the dataset. `SC3` utilizes the Tracy-Widom theory on random matrices to estimate `k`:
+```R
+sce <- sc3_estimate_k(sce)
+```
+We can print the predicted number of clusters with:
+```R
+str(metadata(sce)$sc3$k_estimation)
+```
+
+### 4.4. Calculating distances
+Now we are ready to perform the clustering itself. First `SC3` calculates distances between the cells (i.e. Euclidean, Pearson and Spearman distances):
+```R
+sce <- sc3_calc_dists(sce)
+```
+
+### 4.5. Distance matrix transformation
+Next the distance matrices are transformed using PCA and graph Laplacian:
+```R
+sce <- sc3_calc_transfs(sce)
+```
+
+### 4.6. K-means clustering
+K-means should then be performed on the transformed distance matrices:
+```R
+sce <- sc3_kmeans(sce, ks = <TO_EDIT>:<TO_EDIT>)
+```
+where:
+- ks: number of clusters; you can specify a range of `k`, e.g. if you want to specify between 2 to 6 clusters, the command will look like: `sce <- sc3_kmeans(sce, ks = 2:6)`
+
+**Important information: Don't forget to change the number of clusters for k-means clustering**
+
+### 4.7. Clustering solution
+In this step `SC3` will provide you with a clustering solution. When calculating consensus for each value of `k`, `SC3` averages the clustering results of k-means using a consensus approach.
+```R
+sce <- sc3_calc_consens(sce)
+```
+
+### 4.8. Differentially expressed genes, cell markers and cell outliers
+`SC3` can also calculates DE genes, marker genes and cell outliers based on the calculated consensus clusterings.
+```R
+sce <- sc3_calc_biology(sce, ks = <TO_EDIT>:<TO_EDIT>)
+```
+**Important information: Don't forget to change the number of clusters which is equal to the number of clusters in k-means clustering - `ks` parameter**.
+
+### 4.9 Writing result tables by writing column and row data
+We can write the whole clustering solutions to the text files:
+```R
+write.table(as.data.frame(colData(sce)[,grep("sc3_", colnames(colData(sce)))]), file = "<TO_EDIT>", append = F, quote = F, sep = "\t", row.names = T, col.names = T)
+write.table(as.data.frame(rowData(sce)[ , grep("sc3_", colnames(rowData(sce)))]), file = "<TO_EDIT>", append = F, quote = F, sep = "\t", row.names = T, col.names = T)
+```
+**Important information: Don't forget to change the names of the output files**.
+
+### 4.10. Interactive visualisation
+To quickly and easily explore the `SC3` solutions using an interactive Shiny application use the following method:
+```R
+sc3_interactive(sce)
+```
+
+#### 4.10.1. Consensus matrix
+The consensus matrix is a N by N matrix, where N is the number of cells in the input dataset. It represents similarity between the cells based on the averaging of clustering results from all combinations of clustering parameters. Similarity 0 (blue) means that the two cells are always assigned to different clusters. In contrast, similarity 1 (red) means that the two cells are always assigned to the same cluster. The consensus matrix is clustered by hierarchical clustering and has a diagonal-block structure. Intuitively, the perfect clustering is achieved when all diagonal blocks are completely red and all off-diagonal elements are completely blue.
+
+#### 4.10.2. Silhouette plot
+A silhouette is a quantitative measure of the diagonality of the consensus matrix. An average silhouette width (shown at the bottom left of the silhouette plot) varies from 0 to 1, where 1 represents a perfectly block-diagonal consensus matrix and 0 represents a situation where there is no block-diagonal structure. The best clustering is achieved when the average silhouette width is close to 1.
+
+#### 4.10.3. Expression matrix
+The expression panel represents the original input expression matrix (cells in columns and genes in rows) after cell and gene filters. Genes are clustered by kmeans with k = 100 (dendrogram on the left) and the heatmap represents the expression levels of the gene cluster centers after log2-scaling.
+
+#### 4.10.4. Cluster stability
+Stability index shows how stable each cluster is accross the selected range of ks. The stability index varies between 0 and 1, where 1 means that the same cluster appears in every solution for different k.
+
+#### 4.10.5. Differentially expressed genes
+Differential expression is calculated using the non-parametric Kruskal-Wallis test. A significant p-value indicates that gene expression in at least one cluster stochastically dominates one other cluster. SC3 provides a list of all differentially expressed genes with adjusted p-values < 0.01 and plots gene expression profiles of the 50 genes with the lowest p-values. Note that the calculation of differential expression after clustering can introduce a bias in the distribution of p-values, and thus we advise to use the p-values for ranking the genes only.
+
+#### 4.10.6. Marker genes
+To find marker genes, for each gene a binary classifier is constructed based on the mean cluster expression values. The classifier prediction is then calculated using the gene expression ranks. The area under the receiver operating characteristic (ROC) curve is used to quantify the accuracy of the prediction. A p-value is assigned to each gene by using the Wilcoxon signed rank test. By default the genes with the area under the ROC curve (AUROC) > 0.85 and with the p-value < 0.01 are selected and the top 10 marker genes of each cluster are visualized in this heatmap.
+
+
+## 5. Differential expression testing with DESeq2
+**For more information you can refer to `DESeq2` documentation:** [http://bioconductor.org/packages/release/bioc/html/DESeq2.html](http://bioconductor.org/packages/release/bioc/html/DESeq2.html)
+
+Please refer to the **1. Starting the analysis** and **2. Expression QC** sections of this tutorial.
+
+In order to run DESeq2 we have to remove outliers from the subsequent analysis:
 ```R
 dataset_sce <- filter(dataset_sce, outlier == FALSE)
 ```
-
-## 3. Differential expression testing with DESeq2
-**For more information you can refer to `DESeq2` documentation:** [http://bioconductor.org/packages/release/bioc/html/DESeq2.html](http://bioconductor.org/packages/release/bioc/html/DESeq2.html)
 
 The final step in our analysis workflow is fitting the raw counts to the negative binomial (NB) model and performing the statistical test for differentially expressed genes. In this step we essentially want to determine whether the mean expression levels of different sample groups are significantly different.
 
@@ -244,7 +391,7 @@ _Image credit: Members of the teaching team at the Harvard Chan Bioinformatics C
 
 Prior to performing the differential expression analysis, it is a good idea to know what **sources of variation** are present in your data, either by exploration during the QC and/or prior knowledge. This includes batch effects. Once you know the major sources of variation, you can remove them prior to analysis or control for them in the statistical model by including them in your **design formula**.
 
-### 3.1. Design formula
+### 5.1. Design formula
 A design formula tells the statistical software the known sources of variation to control for, as well as, the factor of interest to test for during differential expression testing. For example, if you know that sex is a significant source of variation in your data, then `sex` should be included in your model. **The design formula should have all of the factors in your metadata that account for major sources of variation in your data. The last factor entered in the formula should be the condition of interest**.
 
 For example, suppose you have the following metadata:
@@ -258,7 +405,7 @@ design <- ~ sex + age + treatment
 
 The advantage of `DESeq2` is that we can run the whole analysis in just **2 lines of code!**. The disadvantage is that the analysis takes a considerable amount of time to finish.
 
-### 3.2. Creating a DESeqDataSet object
+### 5.2. Creating a DESeqDataSet object
 First, we need to tell `DESeq2` how many cores we want to use for our analysis. If you have UNIX-based laptop (Linux, Mac), then run the following command:
 ```R
 register(MulticoreParam(<TO_EDIT>))
@@ -277,7 +424,7 @@ dds <- DESeqDataSetFromMatrix(countData = counts(dataset_sce),
 ```
 **Important information: Don't forget to edit the design formula based on the annotation columns available. Reminder: you can see these columns by running the command `colData(dataset_sce)`.**
 
-### 3.3 Running a differential expression with Likelihood Ratio Test (LRT)
+### 5.3 Running a differential expression with Likelihood Ratio Test (LRT)
 `DESeq2` offers two kinds of hypothesis tests: the Wald test, where we use the estimated standard error of a log2 fold change to test if it is equal to zero, and the likelihood ratio test (LRT). The LRT examines two models for the counts, a full model with a certain number of terms and a reduced model, in which some of the terms of the full model are removed. The test determines if the increased likelihood of the data using the extra terms in the full model is more than expected if those extra terms are truly zero.
 
 The LRT is therefore useful for testing multiple terms at once, for example testing 3 or more levels of a factor at once, or all interactions between two variables. The LRT for count data is conceptually similar to an analysis of variance (ANOVA) calculation in linear regression, except that in the case of the Negative Binomial GLM, we use an analysis of deviance (ANODEV), where the deviance captures the difference in likelihood between a full and a reduced model.
@@ -304,7 +451,7 @@ where:
 
 **Important information: Don't forget to edit the formula for reduced model.**
 
-### 3.4. Loading a DESEq2 object into environment
+### 5.4. Loading a DESEq2 object into environment
 The above command will take between 10 minutes and an hour, depending on the dataset. To load a pre-computed `DESeqDataSet` object we can run a following command:
 
 ```R
@@ -312,10 +459,10 @@ dds <- readRDS("<TO_EDIT>")
 ```
 **Important information: Don't forget to change the path to the `*.rds` file.**
 
-### 3.5. Calculating the results
+### 5.5. Calculating the results
 In order to obtain out results we need to use a function `results`. It extracts a result table from a DESeq analysis giving base means across samples, log2 fold changes, standard errors, test statistics, p-values and adjusted p-values.
 
-#### 3.5.1. Contrasts
+#### 5.5.1. Contrasts
 A contrast is a linear combination of estimated log2 fold changes, which can be used to test if differences between groups are equal to zero. The simplest use case for contrasts is an experimental design containing a factor with three levels, say A, B and C. Contrasts enable the user to generate results for all 3 possible differences: log2 fold change of B vs A, of C vs A, and of C vs B. The contrast argument of results function is used to extract test results of log2 fold changes of interest, for example:
 ```R
 results(dds, contrast=c("condition","C","B"))
@@ -344,7 +491,7 @@ In order to compare e.g. `epsilon` samples with `PSC` samples in `cell_type1` co
 results(dds, contrast=c("cell_type1","epsilon","PSC"))
 ```
 
-#### 3.5.2. Obtaining the result matrix
+#### 5.5.2. Obtaining the result matrix
 Coming back to our dataset, we can obtain the result table by running the following command:
 ```R
 res <- results(dds, parallel = TRUE, contrast = c("<TO_EDIT>", "<TO_EDIT>", "<TO_EDIT>"), cooksCutoff=FALSE)
@@ -361,7 +508,7 @@ We can print the summary of results with `summary` function:
 summary(res)
 ```
 
-### 3.6. Saving results to a file
+### 5.6. Saving results to a file
 We can write the table with differentially expressed genes to a file.
 
 First, we need to convert our results to a data frame:
@@ -381,143 +528,3 @@ Finally, we can save a data frame to a file:
 write.table(res_file, file = "<TO_EDIT>", append = F, quote = F, sep = "\t", row.names = F, col.names = T)
 ```
 **Important information: Don't forget to edit the file name of a file with our results**.
-
-## 4. Clustering approaches and problems
-Once we have normalized the data we can carry out analyses that are relevant to the biological questions at hand. The exact nature of the analysis depends on the dataset. Nevertheless, there are a few aspects that are useful in a wide range of contexts, one of them being the clustering of scRNA-seq data.
-
-One of the most promising applications of scRNA-seq is _de novo_ discovery and annotation of cell-types based on transcription profiles. Computationally, this is a hard problem as it amounts to **unsupervised clustering**. That is, we need to identify groups of cells based on the similarities of the transcriptomes without any prior knowledge of the labels. Moreover, in most situations we do not even know the number of clusters _a priori_. The problem is made even more challenging due to the high level of noise (both technical and biological) and the large number of dimensions (i.e. genes).
-
-Unsupervised clustering is useful in many different applications and it has been widely studied in machine learning. Some of the most popular approaches are **hierarchical clustering** and **k-means clustering**
-
-### 4.1. Hierarchical clustering
-In hierarchical clustering, one can use either a bottom-up or a top-down approach. In the former case, each cell is initially assigned to its own cluster and pairs of clusters are subsequently merged to create a hierarchy:
-
-Raw data:
-
-![image](https://hemberg-lab.github.io/scRNA.seq.course/figures/hierarchical_clustering1.png)
-
-Creating a hierarchical clustering graph:
-
-![image](https://hemberg-lab.github.io/scRNA.seq.course/figures/hierarchical_clustering2.png)
-
-_Image credits: Vladimir Kiselev, Tallulah Andrews, Jennifer Westoby, Davis McCarthy, Maren Büttner and Martin Hemberg, Wellcome Sanger Institute, Cambridge_
-
-With a top-down strategy, one instead starts with all observations in one cluster and then recursively split each cluster to form a hierarchy. One of the advantages of this strategy is that the method is deterministic.
-
-### 4.2. K-means clustering
-In k-means clustering, the goal is to partition N cells into k different clusters. In an iterative manner, cluster centers are assigned and each cell is assigned to its nearest cluster:
-
-![image](https://hemberg-lab.github.io/scRNA.seq.course/figures/k-means.png)
-
-_Image credit: Vladimir Kiselev, Tallulah Andrews, Jennifer Westoby, Davis McCarthy, Maren Büttner and Martin Hemberg, Wellcome Sanger Institute, Cambridge_
-
-
-To run a k-means algorithm, you have to randomly initialize three points called the cluster centroids. In the example we have three cluster centroids, because we want to group a data into three clusters. K-means is an iterative algorithm and it does two steps: 1. Cluster assignment step 2. Move centroid step.
-
-In Cluster assignment step, the algorithm goes through each of the data points and depending on which cluster is closer, whether the red cluster centroid or the blue cluster centroid or the green. It assigns the data points to one of the three cluster centroids.
-
-In move centroid step, K-means moves the centroids to the average of the points in a cluster. In other words, the algorithm calculates the average of all the points in a cluster and moves the centroid to that average location.
-
-### 4.3. Problems with the clustering method
-- What is the number of clusters k?
-- What is a cell type?
-- Scalability: in the last few years the number of cells in scRNA-seq experiments has grown by several orders of magnitude from hundreds to millions.
-- Tools are not user-friendly
-
-## 5. SC3 library - clustering example
-**For more information you can refer to `SC3` documentation:** [http://bioconductor.org/packages/release/bioc/html/SC3.html](http://bioconductor.org/packages/release/bioc/html/SC3.html)
-
-**Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/2_sc3_script.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/2_sc3_script.R)
-
-Single-Cell Consensus Clustering (`SC3`) is a tool for unsupervised clustering of scRNA-seq data. `SC3` achieves high accuracy and robustness by consistently integrating different clustering solutions through a consensus approach. An interactive graphical implementation makes `SC3` accessible to a wide audience of users. In addition, `SC3` also aids biological interpretation by identifying marker genes, differentially expressed genes and outlier cells. A manuscript describing `SC3` in details is published in [Nature Methods](http://dx.doi.org/10.1038/nmeth.4236).
-
-![image](https://hemberg-lab.github.io/scRNA.seq.course/figures/sc3.png)
-
-_Image credit: Vladimir Kiselev, Tallulah Andrews, Jennifer Westoby, Davis McCarthy, Maren Büttner and Martin Hemberg, Wellcome Sanger Institute, Cambridge_
-
-### 5.1. Loading and cleaning the data
-Please refer to the **1. Starting the analysis** and **2. Expression QC** sections of this tutorial.
-
-In order to have feature names included in all the analyses (i.e. tables and plots), we need to put their names in the `feature_symbol` column in row data:
-```R
-rowData(sce)$feature_symbol <- rownames(sce)
-```
-We also need to remove some duplicated feature names (if there are any):
-```R
-sce <- sce[!duplicated(rowData(sce)$feature_symbol), ]
-```
-
-### 5.2. Preparing the data
-We start with `sc3_prepare`. This method prepares an object of `sce` class for `SC3` clustering. This method also defines all parameters needed for clustering and stores them in the `sc3` slot:
-```R
-sce <- sc3_prepare(sce)
-```
-
-### 5.3. Calculating the optimal number of clusters
-When the `sce` object is prepared for clustering, `SC3` can also estimate the optimal number of clusters `k` in the dataset. `SC3` utilizes the Tracy-Widom theory on random matrices to estimate `k`:
-```R
-sce <- sc3_estimate_k(sce)
-```
-We can print the predicted number of clusters with:
-```R
-str(metadata(sce)$sc3$k_estimation)
-```
-
-### 5.4. Calculating distances
-Now we are ready to perform the clustering itself. First `SC3` calculates distances between the cells (i.e. Euclidean, Pearson and Spearman distances):
-```R
-sce <- sc3_calc_dists(sce)
-```
-
-### 5.5. Distance matrix transformation
-Next the distance matrices are transformed using PCA and graph Laplacian:
-```R
-sce <- sc3_calc_transfs(sce)
-```
-
-### 5.6. K-means clustering
-K-means should then be performed on the transformed distance matrices:
-```R
-sce <- sc3_kmeans(sce, ks = <TO_EDIT>:<TO_EDIT>)
-```
-where:
-- ks: number of clusters; you can specify a range of `k`, e.g. if you want to specify between 2 to 6 clusters, the command will look like: `sce <- sc3_kmeans(sce, ks = 2:6)`
-
-**Important information: Don't forget to change the number of clusters for k-means clustering**
-
-### 5.7. Clustering solution
-In this step `SC3` will provide you with a clustering solution. When calculating consensus for each value of `k`, `SC3` averages the clustering results of k-means using a consensus approach.
-```R
-sce <- sc3_calc_consens(sce)
-```
-
-### 5.8. Differentially expressed genes, cell markers and cell outliers
-`SC3` can also calculates DE genes, marker genes and cell outliers based on the calculated consensus clusterings.
-```R
-sce <- sc3_calc_biology(sce, ks = <TO_EDIT>:<TO_EDIT>)
-```
-**Important information: Don't forget to change the number of clusters which is equal to the number of clusters in k-means clustering - `ks` parameter**.
-
-### 5.9. Interactive visualisation
-To quickly and easily explore the `SC3` solutions using an interactive Shiny application use the following method:
-```R
-sc3_interactive(sce)
-```
-
-#### 5.9.1. Consensus matrix
-The consensus matrix is a N by N matrix, where N is the number of cells in the input dataset. It represents similarity between the cells based on the averaging of clustering results from all combinations of clustering parameters. Similarity 0 (blue) means that the two cells are always assigned to different clusters. In contrast, similarity 1 (red) means that the two cells are always assigned to the same cluster. The consensus matrix is clustered by hierarchical clustering and has a diagonal-block structure. Intuitively, the perfect clustering is achieved when all diagonal blocks are completely red and all off-diagonal elements are completely blue.
-
-#### 5.9.2. Silhouette plot
-A silhouette is a quantitative measure of the diagonality of the consensus matrix. An average silhouette width (shown at the bottom left of the silhouette plot) varies from 0 to 1, where 1 represents a perfectly block-diagonal consensus matrix and 0 represents a situation where there is no block-diagonal structure. The best clustering is achieved when the average silhouette width is close to 1.
-
-#### 5.9.3. Expression matrix
-The expression panel represents the original input expression matrix (cells in columns and genes in rows) after cell and gene filters. Genes are clustered by kmeans with k = 100 (dendrogram on the left) and the heatmap represents the expression levels of the gene cluster centers after log2-scaling.
-
-#### 5.9.4. Cluster stability
-Stability index shows how stable each cluster is accross the selected range of ks. The stability index varies between 0 and 1, where 1 means that the same cluster appears in every solution for different k.
-
-#### 5.9.5. Differentially expressed genes
-Differential expression is calculated using the non-parametric Kruskal-Wallis test. A significant p-value indicates that gene expression in at least one cluster stochastically dominates one other cluster. SC3 provides a list of all differentially expressed genes with adjusted p-values < 0.01 and plots gene expression profiles of the 50 genes with the lowest p-values. Note that the calculation of differential expression after clustering can introduce a bias in the distribution of p-values, and thus we advise to use the p-values for ranking the genes only.
-
-#### 5.9.6. Marker genes
-To find marker genes, for each gene a binary classifier is constructed based on the mean cluster expression values. The classifier prediction is then calculated using the gene expression ranks. The area under the receiver operating characteristic (ROC) curve is used to quantify the accuracy of the prediction. A p-value is assigned to each gene by using the Wilcoxon signed rank test. By default the genes with the area under the ROC curve (AUROC) > 0.85 and with the p-value < 0.01 are selected and the top 10 marker genes of each cluster are visualized in this heatmap.
