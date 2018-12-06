@@ -56,23 +56,25 @@ During preparation of these materials I used materials already available in the 
 ## Data repository
 You can find all the input files needed for the analysis at [https://drive.google.com/drive/folders/1K_RfWQVglVsjQ5eEKBYhXwrU5XRynDKi?usp=sharing](https://drive.google.com/drive/folders/1K_RfWQVglVsjQ5eEKBYhXwrU5XRynDKi?usp=sharing)
 
-## Datasets
-During our course we will be using three datasets - one focused on expression patterns in developing mouse embryo and two concentrated on different cell populations in human pancreas.
+**Important: Download only the `dataset3` directory**
 
-### Deng Q, _et al_., 2014
+## Datasets
+During our course we will be using three datasets, starting from `dataset3` - one focused on expression patterns in developing mouse embryo (`dataset1`) and two concentrated on different cell populations in human pancreas (`dataset2` and `dataset3`).
+
+### Dataset 1 - Deng Q, _et al_., 2014
 Link to the publication: [http://science.sciencemag.org/content/343/6167/193](http://science.sciencemag.org/content/343/6167/193)
 
 **Abstract**:
 Expression from both alleles is generally observed in analyses of diploid cell populations, but studies addressing allelic expression patterns genome-wide in single cells are lacking. Here, we present global analyses of allelic expression across individual cells of mouse preimplantation embryos of mixed background (CAST/EiJ × C57BL/6J). We discovered abundant (12 to 24%) monoallelic expression of autosomal genes and that expression of the two alleles occurs independently. The monoallelic expression appeared random and dynamic because there was considerable variation among closely related embryonic cells. Similar patterns of monoallelic expression were observed in mature cells. Our allelic expression analysis also demonstrates the de novo inactivation of the paternal X chromosome. We conclude that independent and stochastic allelic transcription generates abundant random monoallelic expression in the mammalian cell.
 
-### Muraro MJ, _et al_., 2016
+### Dataset 2 - Muraro MJ, _et al_., 2016
 Link to the publication:
 [https://www.sciencedirect.com/science/article/pii/S2405471216302927](https://www.sciencedirect.com/science/article/pii/S2405471216302927)
 
 **Abstract**:
 To understand organ function, it is important to have an inventory of its cell types and of their corresponding marker genes. This is a particularly challenging task for human tissues like the pancreas, because reliable markers are limited. Hence, transcriptome-wide studies are typically done on pooled islets of Langerhans, obscuring contributions from rare cell types and of potential subpopulations. To overcome this challenge, we developed an automated platform that uses FACS, robotics, and the CEL-Seq2 protocol to obtain the transcriptomes of thousands of single pancreatic cells from deceased organ donors, allowing in silico purification of all main pancreatic cell types. We identify cell type-specific transcription factors and a subpopulation of REG3A-positive acinar cells. We also show that CD24 and TM4SF4 expression can be used to sort live alpha and beta cells with high purity. This resource will be useful for developing a deeper understanding of pancreatic biology and pathophysiology of diabetes mellitus.
 
-### Segerstolpe A, _et al_., 2016
+### Dataset 3 - Segerstolpe A, _et al_., 2016
 Link to the publication:
 [https://www.sciencedirect.com/science/article/pii/S1550413116304363](https://www.sciencedirect.com/science/article/pii/S1550413116304363)
 
@@ -84,6 +86,9 @@ Hormone-secreting cells within pancreatic islets of Langerhans play important ro
 The count matrix contains gene IDs as rows and sample names as columns. The filename of this file ends at `*_counts.txt`.
 ### Annotation file
 The annotation file contains sample names as row and all available meta-data (conditions/batches) as columns. The filename of this file ends at `*_ann.txt`.
+
+#### TASK:
+Look at the downloaded `segerstolpe_ann.txt` file in `dataset3` directory - assuming that we are interested in differences in different cell types, can you see any potential confounding factors that may be problematic in the analysis of the dataset?
 
 ## 1. Starting the analysis
 **Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc3_script.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc3_script.R)
@@ -146,6 +151,10 @@ We can view the calculated quality metrics with:
 ```R
 colData(dataset_sce)
 ```
+
+#### TASK:
+Which metrics (i.e. columns) in the `colData(dataset_sce)` were added by `calculateQCMetrics` function?
+
 Next, in order to perform a dimensionality reduction, we need to normalise the data - usually by doing a _log2_ transformation:
 ```R
 dataset_sce <- normalize(dataset_sce)
@@ -169,11 +178,18 @@ To plot the results in RStudio we can type:
 ```R
 plotPCA(dataset_sce, colour_by = "cell_type1")
 ```
+#### TASK:
+Run the `runPCA` and `plotPCA` commands few times. Do you see any changes in the resulting plots?
+
+
 We can investigate the relative importance of different explanatory factors with the  `plotExplanatoryVariables` function. We compute the R² for each factor in `colData(dataset_sce)` when fitting a linear model regressing expression values for each gene against that factor. This is best done on the log-expression values to reduce the effect of the mean on the variance - not a problem because we have already ran `normalize` first.
 
 ```R
 plotExplanatoryVariables(dataset_sce)
 ```
+
+#### TASK:
+Which variable does explain the most of the variance in the data?
 
 ### 2.2. tSNE - t-Distributed Stochastic Neighbor Embedding
 An alternative to PCA for visualizing scRNA-Seq data is a tSNE plot. [It has been introduced by van der Maaten and Hinton in 2008](http://www.jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf). tSNE (t-Distributed Stochastic Neighbor Embedding) combines dimensionality reduction (e.g. PCA) although, in contrast with PCA, tSNE is a stochastic algorithm which means running the method multiple times on the same dataset will result in different plots.
@@ -192,6 +208,10 @@ dataset_sce <- runTSNE(dataset_sce, perplexity=<NUMBER_TO_EDIT>)
 plotTSNE(dataset_sce, colour_by = "cell_type1")
 ```
 **Important: Don't forget to change the perplexity parameter to any number you have in mind.**
+
+#### TASK:
+- Run the `runTSNE` and `plotTSNE` functions with different perplexity numbers. How do different perplexity numbers affect your tSNE plot?
+- Run the `runTSNE` and `plotTSNE` functions with chosen perplexity number few times. Do you obtain the same or different results (i.e. plots) with the same perplexity numbers?
 
 ### 2.3. Identification of outliers - automatic PCA-based method
 Another option available in `scater` is to conduct PCA on a set of QC metrics and then use automatic outlier detection to identify potentially problematic cells.
@@ -218,6 +238,9 @@ Plotting the PCA plot with outliers depicted as different point sizes:
 ```R
 plotPCA(dataset_sce, colour_by = "cell_type1", size_by = "outlier")
 ```
+
+### TASK:
+Do the data contain any outliers identified with automatic PCA-based method?
 
 ## 3. Clustering approaches and problems
 Once we have normalized the data we can carry out analyses that are relevant to the biological questions at hand. The exact nature of the analysis depends on the dataset. Nevertheless, there are a few aspects that are useful in a wide range of contexts, one of them being the clustering of scRNA-seq data.
@@ -296,6 +319,9 @@ We can print the predicted number of clusters with:
 str(metadata(sce)$sc3$k_estimation)
 ```
 
+#### TASK:
+What is 'the best' number of clusters identified by the algorithm?
+
 ### 4.4. Calculating distances
 Now we are ready to perform the clustering itself. First `SC3` calculates distances between the cells (i.e. Euclidean, Pearson and Spearman distances):
 ```R
@@ -339,11 +365,17 @@ write.table(as.data.frame(rowData(sce)[ , grep("sc3_", colnames(rowData(sce)))])
 ```
 **Important information: Don't forget to change the names of the output files**.
 
+#### TASK:
+Open the colData and rowData files either in text editor or in Excel. What information do you have in each of these files?
+
 ### 4.10. Interactive visualisation
-To quickly and easily explore the `SC3` solutions using an interactive Shiny application use the following method:
+To quickly and easily explore the `SC3` solutions using an interactive Shiny application (opens in your default system Internet browser) use the following method:
 ```R
 sc3_interactive(sce)
 ```
+
+### TASK:
+Play with different `k` parameters in your data. Does the best `k` parameter is the one chosen automatically?
 
 #### 4.10.1. Consensus matrix
 The consensus matrix is a N by N matrix, where N is the number of cells in the input dataset. It represents similarity between the cells based on the averaging of clustering results from all combinations of clustering parameters. Similarity 0 (blue) means that the two cells are always assigned to different clusters. In contrast, similarity 1 (red) means that the two cells are always assigned to the same cluster. The consensus matrix is clustered by hierarchical clustering and has a diagonal-block structure. Intuitively, the perfect clustering is achieved when all diagonal blocks are completely red and all off-diagonal elements are completely blue.
@@ -362,7 +394,6 @@ Differential expression is calculated using the non-parametric Kruskal-Wallis te
 
 #### 4.10.6. Marker genes
 To find marker genes, for each gene a binary classifier is constructed based on the mean cluster expression values. The classifier prediction is then calculated using the gene expression ranks. The area under the receiver operating characteristic (ROC) curve is used to quantify the accuracy of the prediction. A p-value is assigned to each gene by using the Wilcoxon signed rank test. By default the genes with the area under the ROC curve (AUROC) > 0.85 and with the p-value < 0.01 are selected and the top 10 marker genes of each cluster are visualized in this heatmap.
-
 
 ## 5. Differential expression testing with DESeq2
 **For more information you can refer to `DESeq2` documentation:** [http://bioconductor.org/packages/release/bioc/html/DESeq2.html](http://bioconductor.org/packages/release/bioc/html/DESeq2.html)
