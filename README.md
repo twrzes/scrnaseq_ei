@@ -87,9 +87,6 @@ The count matrix contains gene IDs as rows and sample names as columns. The file
 ### Annotation file
 The annotation file contains sample names as row and all available meta-data (conditions/batches) as columns. The filename of this file ends at `*_ann.txt`.
 
-#### TASK:
-Look at the downloaded `segerstolpe_ann.txt` file in `dataset3` directory - assuming that we are interested in differences in different cell types, can you see any potential confounding factors that may be problematic in the analysis of the dataset?
-
 ## 1. Starting the analysis
 **Script name:** [https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc3_script.R](https://github.com/twrzes/scrnaseq_ei/blob/master/scripts/1_sc3_script.R)
 ### 1.1. Loading the data to R
@@ -103,6 +100,9 @@ gene_counts <- read.table("<TO_EDIT>", header = T, sep = "\t", check.names = FAL
 ```
 **Important: Don't forget to change the path to the counts file in your script before running the line.**
 
+#### TASK:
+Look at the `gene_counts` object (you can do that either by clicking on the object under `Environment` tab in RStudio - this may take a lot of time - or by typing `head(gene_counts)` in RStudio which will give you an overview of columns in the file) - assuming that we are interested in differences in different cell types, can you see any potential confounding factors that may be problematic in the analysis of the dataset?
+
 Because all the R libraries require to have gene names as row names, we need to change the first column to row names and remove the column from the data frame. This can be achieved by the following code:
 ```R
 rownames(gene_counts) <- gene_counts[["gene_name"]]
@@ -113,6 +113,9 @@ Next, we load the sample annotation file:
 cell_annotations <- read.table("<TO_EDIT>", header = T, sep = "\t", check.names = FALSE)
 ```
 **Important: Don't forget to change the path to the annotation file in your script before running the line.**
+
+#### TASK:
+Look at the `cell_annotations` object under `Environment` tab in RStudio - assuming that we are interested in differences in different cell types, can you see any potential confounding factors that may be problematic in the analysis of the dataset?
 
 Because all the libraries require to have cell names as row names, we need to change the first column to row names and remove the column from the data frame. This can be achieved by the following code:
 ```R
@@ -135,6 +138,9 @@ dataset_sce <- SingleCellExperiment(
 where:
 - `assays`: list of matrices with unnormalised or normalised counts
 - `colData`: DataFrame with cell annotations
+
+#### TASK:
+Which assays are available in `dataset_sce` object? (type `assays(dataset_sce)`). Which annotations are available in `dataset_sce` object? (type `colData(dataset_sce)`).
 
 ## 2. Expression QC
 **For more information you can refer to `scater` documentation:** [http://bioconductor.org/packages/release/bioc/html/scater.html](http://bioconductor.org/packages/release/bioc/html/scater.html)
@@ -179,7 +185,7 @@ To plot the results in RStudio we can type:
 plotPCA(dataset_sce, colour_by = "cell_type1")
 ```
 #### TASK:
-Run the `runPCA` and `plotPCA` commands few times. Do you see any changes in the resulting plots?
+Run the `runPCA` and `plotPCA` functions few times. Do you see any changes in the resulting plots?
 
 
 We can investigate the relative importance of different explanatory factors with the  `plotExplanatoryVariables` function. We compute the R² for each factor in `colData(dataset_sce)` when fitting a linear model regressing expression values for each gene against that factor. This is best done on the log-expression values to reduce the effect of the mean on the variance - not a problem because we have already ran `normalize` first.
@@ -344,6 +350,9 @@ where:
 
 **Important information: Don't forget to change the number of clusters for k-means clustering**
 
+#### TASK:
+Calculate K-means with desired number of clusters (the number should overlap predicted number of clusters).
+
 ### 4.7. Clustering solution
 In this step `SC3` will provide you with a clustering solution. When calculating consensus for each value of `k`, `SC3` averages the clustering results of k-means using a consensus approach.
 ```R
@@ -366,7 +375,7 @@ write.table(as.data.frame(rowData(sce)[ , grep("sc3_", colnames(rowData(sce)))])
 **Important information: Don't forget to change the names of the output files**.
 
 #### TASK:
-Open the colData and rowData files either in text editor or in Excel. What information do you have in each of these files?
+Open the colData and rowData files either in text editor (e.g. Notepad) or in Excel. What types of information do you have in each of these files?
 
 ### 4.10. Interactive visualisation
 To quickly and easily explore the `SC3` solutions using an interactive Shiny application (opens in your default system Internet browser) use the following method:
@@ -457,6 +466,10 @@ dds <- DESeqDataSetFromMatrix(countData = counts(dataset_sce),
 ```
 **Important information: Don't forget to edit the design formula based on the annotation columns available. Reminder: you can see these columns by running the command `colData(dataset_sce)`.**
 
+#### TASK:
+Which design formula would you use to see differentially expressed genes between different cell types between different disease conditions?
+
+
 ### 5.3 Running a differential expression with Likelihood Ratio Test (LRT)
 `DESeq2` offers two kinds of hypothesis tests: the Wald test, where we use the estimated standard error of a log2 fold change to test if it is equal to zero, and the likelihood ratio test (LRT). The LRT examines two models for the counts, a full model with a certain number of terms and a reduced model, in which some of the terms of the full model are removed. The test determines if the increased likelihood of the data using the extra terms in the full model is more than expected if those extra terms are truly zero.
 
@@ -483,6 +496,9 @@ where:
 - `parallel = TRUE`: Parallel execution with `BiocParallel`.
 
 **Important information: Don't forget to edit the formula for reduced model.**
+
+#### TASK:
+Which reduced model would you use in our case?
 
 ### 5.4. Loading a DESEq2 object into environment
 The above command will take between 10 minutes and an hour, depending on the dataset. To load a pre-computed `DESeqDataSet` object we can run a following command:
@@ -524,6 +540,7 @@ In order to compare e.g. `epsilon` samples with `PSC` samples in `cell_type1` co
 results(dds, contrast=c("cell_type1","epsilon","PSC"))
 ```
 
+
 #### 5.5.2. Obtaining the result matrix
 Coming back to our dataset, we can obtain the result table by running the following command:
 ```R
@@ -535,6 +552,9 @@ where:
 - `cooksCutoff=FALSE`: The `results` function automatically flags genes which contain a Cook’s distance above a cutoff for samples which have 3 or more replicates. Setting this option to `FALSE` turns this behaviour off.
 
 **Important information: Don't forget to edit the `contrast` character vector.**
+
+#### TASK:
+Choose a contrast you would like to use and type in `contrast` parameter in `results` function
 
 We can print the summary of results with `summary` function:
 ```R
@@ -561,3 +581,6 @@ Finally, we can save a data frame to a file:
 write.table(res_file, file = "<TO_EDIT>", append = F, quote = F, sep = "\t", row.names = F, col.names = T)
 ```
 **Important information: Don't forget to edit the file name of a file with our results**.
+
+#### TASK:
+Open the resulting file either in the text editor (e.g. Notepad) or Excel. What do all the columns mean?
